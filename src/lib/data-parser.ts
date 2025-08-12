@@ -11,18 +11,10 @@ export async function parseCSV(file: File): Promise<ParsedData> {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      dynamicTyping: true, // Auto-convert numbers
       transformHeader: (header) => header.trim(),
-      transform: (value) => {
-        // Try to convert to number if possible
-        const trimmed = value.trim();
-        if (trimmed === '') return null;
-        
-        const num = Number(trimmed);
-        if (!isNaN(num)) return num;
-        
-        return trimmed;
-      },
       complete: (results) => {
+        console.log('CSV parsing complete:', results);
         resolve({
           data: results.data,
           headers: results.meta.fields || [],

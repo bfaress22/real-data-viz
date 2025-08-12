@@ -12,9 +12,17 @@ export function DataTable({ data, selectedColumns, onColumnSelect }: DataTablePr
   if (!data.length) return null;
 
   const columns = Object.keys(data[0]);
-  const numericColumns = columns.filter(col => 
-    data.every(row => !isNaN(Number(row[col])) && row[col] !== null && row[col] !== "")
-  );
+  const numericColumns = columns.filter(col => {
+    // Check if at least 80% of values are numeric
+    const numericCount = data.filter(row => {
+      const val = row[col];
+      return val !== null && val !== undefined && val !== "" && !isNaN(Number(val));
+    }).length;
+    return numericCount / data.length >= 0.8;
+  });
+
+  console.log('Available columns:', columns);
+  console.log('Numeric columns detected:', numericColumns);
 
   return (
     <Card className="glass-card">

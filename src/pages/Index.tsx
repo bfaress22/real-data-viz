@@ -52,12 +52,21 @@ const Index = () => {
       setRawData(result.data);
       
       // Auto-select first two numeric columns if available
-      const numericColumns = result.headers.filter(col => 
-        result.data.every(row => !isNaN(Number(row[col])) && row[col] !== null && row[col] !== "")
-      );
+      const numericColumns = result.headers.filter(col => {
+        const numericCount = result.data.filter(row => {
+          const val = row[col];
+          return val !== null && val !== undefined && val !== "" && !isNaN(Number(val));
+        }).length;
+        return numericCount / result.data.length >= 0.8;
+      });
+      
+      console.log('Detected numeric columns:', numericColumns);
       
       if (numericColumns.length >= 2) {
         setSelectedColumns({ x: numericColumns[0], y: numericColumns[1] });
+      } else if (numericColumns.length === 1) {
+        // If only one numeric column, user will need to select manually
+        setSelectedColumns({ x: numericColumns[0], y: "" });
       }
 
       toast({
@@ -84,11 +93,19 @@ const Index = () => {
   // Perform regressions when data or columns change
   useEffect(() => {
     if (processedData.length < 2) {
+      console.log('Not enough data points for regression:', processedData.length);
+      setRegressionResults({ linear: null, polynomial: null, exponential: null });
+      return;
+    }
+
+    if (selectedColumns.x === selectedColumns.y) {
+      console.log('X and Y variables are the same - skipping regression');
       setRegressionResults({ linear: null, polynomial: null, exponential: null });
       return;
     }
 
     console.log('Processing regression for', processedData.length, 'data points');
+    console.log('X column:', selectedColumns.x, 'Y column:', selectedColumns.y);
 
     const results: Record<RegressionType, any> = {
       linear: performRegression(processedData, 'linear'),
@@ -98,7 +115,7 @@ const Index = () => {
 
     console.log('Regression results:', results);
     setRegressionResults(results);
-  }, [processedData]);
+  }, [processedData, selectedColumns.x, selectedColumns.y]);
 
   const currentRegression = regressionResults[selectedModel];
 
