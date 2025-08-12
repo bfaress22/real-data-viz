@@ -35,11 +35,19 @@ export function performRegression(
         result = regression.polynomial(regressionData, { order });
         break;
       case 'exponential':
-        result = regression.exponential(regressionData);
+        // Filter out non-positive y values for exponential regression
+        const positiveData = regressionData.filter(([x, y]) => y > 0);
+        if (positiveData.length < 2) {
+          console.warn('Exponential regression requires positive Y values');
+          return null;
+        }
+        result = regression.exponential(positiveData);
         break;
       default:
         throw new Error(`Unsupported regression type: ${type}`);
     }
+
+    console.log(`${type} regression result:`, result);
 
     return {
       equation: result.equation,

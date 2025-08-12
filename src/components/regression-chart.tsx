@@ -71,7 +71,7 @@ export function RegressionChart({ data, regression, title, xLabel, yLabel }: Reg
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <ScatterChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
                 dataKey="x" 
@@ -101,17 +101,17 @@ export function RegressionChart({ data, regression, title, xLabel, yLabel }: Reg
               />
               
               {/* Regression line */}
-              {regression && (
+              {regression && regression.points && (
                 <Line
                   type="monotone"
                   dataKey="predicted"
                   stroke="hsl(var(--accent))"
-                  strokeWidth={2}
+                  strokeWidth={3}
                   dot={false}
                   connectNulls={false}
                 />
               )}
-            </LineChart>
+            </ScatterChart>
           </ResponsiveContainer>
         </div>
       </CardContent>

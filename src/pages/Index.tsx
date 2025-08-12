@@ -88,12 +88,15 @@ const Index = () => {
       return;
     }
 
+    console.log('Processing regression for', processedData.length, 'data points');
+
     const results: Record<RegressionType, any> = {
       linear: performRegression(processedData, 'linear'),
       polynomial: performRegression(processedData, 'polynomial', 2),
       exponential: performRegression(processedData, 'exponential')
     };
 
+    console.log('Regression results:', results);
     setRegressionResults(results);
   }, [processedData]);
 
