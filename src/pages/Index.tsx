@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DataTable } from "@/components/data-table";
 import { ModelSelector, RegressionType } from "@/components/model-selector";
@@ -21,11 +21,12 @@ const Index = () => {
     exponential: null
   });
 
-  const processedData: DataPoint[] = selectedColumns.x && selectedColumns.y 
-    ? validateNumericData(rawData, selectedColumns.x, selectedColumns.y)
-    : [];
+  const processedData: DataPoint[] = useMemo(() => {
+    if (!selectedColumns.x || !selectedColumns.y || !rawData.length) return [];
+    return validateNumericData(rawData, selectedColumns.x, selectedColumns.y);
+  }, [rawData, selectedColumns.x, selectedColumns.y]);
 
-  const statistics = calculateStatistics(processedData);
+  const statistics = useMemo(() => calculateStatistics(processedData), [processedData]);
 
   const handleFileSelect = useCallback(async (file: File) => {
     try {
@@ -81,7 +82,7 @@ const Index = () => {
   }, []);
 
   // Perform regressions when data or columns change
-  React.useEffect(() => {
+  useEffect(() => {
     if (processedData.length < 2) {
       setRegressionResults({ linear: null, polynomial: null, exponential: null });
       return;
