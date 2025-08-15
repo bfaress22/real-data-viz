@@ -8,6 +8,7 @@ export interface DataPoint {
 export interface RegressionResult {
   equation: number[];
   string: string;
+  customString?: string; // Equation with custom variable names
   r2: number;
   points: DataPoint[];
   type: RegressionType;
@@ -32,6 +33,49 @@ export interface RegressionMetrics {
 }
 
 export type RegressionType = 'linear' | 'polynomial' | 'exponential' | 'logarithmic' | 'power' | 'logistic';
+
+// Helper function to create custom equation strings with variable names
+function createCustomEquationString(
+  type: RegressionType, 
+  coefficients: number[], 
+  xName: string, 
+  yName: string, 
+  degree?: number
+): string {
+  const formatCoef = (coef: number, precision = 4) => coef.toFixed(precision);
+  
+  switch (type) {
+    case 'linear':
+      const [intercept, slope] = coefficients;
+      return `${yName} = ${formatCoef(intercept)} + ${formatCoef(slope)}${xName}`;
+    
+    case 'polynomial':
+      return `${yName} = ${coefficients.map((coef, i) => 
+        i === 0 ? formatCoef(coef) : 
+        i === 1 ? `${coef >= 0 ? '+' : ''}${formatCoef(coef)}${xName}` :
+        `${coef >= 0 ? '+' : ''}${formatCoef(coef)}${xName}^${i}`
+      ).join('')}`;
+    
+    case 'exponential':
+      const [a, b] = coefficients;
+      return `${yName} = ${formatCoef(a)} * e^(${formatCoef(b)}${xName})`;
+    
+    case 'logarithmic':
+      const [a_log, b_log] = coefficients;
+      return `${yName} = ${formatCoef(a_log)} + ${formatCoef(b_log)} * ln(${xName})`;
+    
+    case 'power':
+      const [a_pow, b_pow] = coefficients;
+      return `${yName} = ${formatCoef(a_pow)} * ${xName}^${formatCoef(b_pow)}`;
+    
+    case 'logistic':
+      const [beta0, beta1] = coefficients;
+      return `${yName} = 1 / (1 + e^(-(${formatCoef(beta0)} + ${formatCoef(beta1)}${xName})))`;
+    
+    default:
+      return '';
+  }
+}
 
 // Linear Regression Implementation
 function linearRegression(data: DataPoint[]): RegressionResult | null {
@@ -511,7 +555,9 @@ function erf(x: number): number {
 export function performRegression(
   data: DataPoint[], 
   type: RegressionType,
-  order = 2
+  order = 2,
+  xName = 'x',
+  yName = 'y'
 ): RegressionResult | null {
   if (data.length < 2) return null;
 
@@ -542,6 +588,18 @@ export function performRegression(
     }
 
     console.log(`${type} regression result:`, result);
+    
+    // Add custom equation string with variable names
+    if (result) {
+      result.customString = createCustomEquationString(
+        type,
+        result.coefficients,
+        xName,
+        yName,
+        order
+      );
+    }
+    
     return result;
   } catch (error) {
     console.error(`Error performing ${type} regression:`, error);

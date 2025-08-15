@@ -8,7 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileUpload } from "@/components/ui/file-upload";
 import { parseFile } from "@/lib/data-parser";
 import { toast } from "@/hooks/use-toast";
-import { Database, Plus, X, FileText, CheckCircle, ArrowRight, Info } from "lucide-react";
+import { Database, Plus, X, FileText, CheckCircle, ArrowRight, Info, RefreshCcw, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface Dataset {
   id: string;
@@ -22,6 +25,7 @@ export interface VariableSelection {
   datasetId: string;
   column: string;
   label: string;
+  customName?: string; // Custom name for the variable in equations
 }
 
 interface MultiDatasetManagerProps {
@@ -31,6 +35,201 @@ interface MultiDatasetManagerProps {
   onVariableSelect: (variable: VariableSelection, axis: 'x' | 'y') => void;
   onValidateAndProceed?: () => void;
   isValidated?: boolean;
+}
+
+// Helper functions for forex pair detection and inversion
+function detectForexPair(columnName: string): { isForexPair: boolean; baseCurrency?: string; quoteCurrency?: string; format?: 'slash' | 'direct' } {
+  // Pattern for XXX/YYY format
+  const slashPattern = /^([A-Z]{3})\/([A-Z]{3})$/;
+  // Pattern for XXXYYY format (6 characters)
+  const directPattern = /^([A-Z]{3})([A-Z]{3})$/;
+  
+  const slashMatch = columnName.match(slashPattern);
+  if (slashMatch) {
+    return {
+      isForexPair: true,
+      baseCurrency: slashMatch[1],
+      quoteCurrency: slashMatch[2],
+      format: 'slash'
+    };
+  }
+  
+  const directMatch = columnName.match(directPattern);
+  if (directMatch) {
+    return {
+      isForexPair: true,
+      baseCurrency: directMatch[1],
+      quoteCurrency: directMatch[2],
+      format: 'direct'
+    };
+  }
+  
+  return { isForexPair: false };
+}
+
+function invertForexPair(columnName: string): string {
+  const pairInfo = detectForexPair(columnName);
+  if (!pairInfo.isForexPair || !pairInfo.baseCurrency || !pairInfo.quoteCurrency) {
+    return columnName;
+  }
+  
+  if (pairInfo.format === 'slash') {
+    return `${pairInfo.quoteCurrency}/${pairInfo.baseCurrency}`;
+  } else {
+    return `${pairInfo.quoteCurrency}${pairInfo.baseCurrency}`;
+  }
+}
+
+function invertForexDataInDataset(dataset: Dataset, columnName: string, forexPairName?: string): Dataset {
+  const newColumnName = forexPairName ? invertForexPair(forexPairName) : invertForexPair(columnName);
+  
+  const newData = dataset.data.map(row => {
+    const newRow = { ...row };
+    const value = parseFloat(row[columnName]);
+    
+    if (!isNaN(value) && value !== 0) {
+      newRow[newColumnName] = 1 / value;
+    } else {
+      newRow[newColumnName] = null;
+    }
+    
+    // Remove the old column
+    delete newRow[columnName];
+    
+    return newRow;
+  });
+
+  // Update headers and numeric columns
+  const newHeaders = dataset.headers.map(h => h === columnName ? newColumnName : h);
+  const newNumericColumns = dataset.numericColumns.map(h => h === columnName ? newColumnName : h);
+
+  return {
+    ...dataset,
+    data: newData,
+    headers: newHeaders,
+    numericColumns: newNumericColumns
+  };
+}
+
+// Forex Column Manager Component
+function ForexColumnManager({ 
+  dataset, 
+  onForexInversion 
+}: { 
+  dataset: Dataset; 
+  onForexInversion: (datasetId: string, columnName: string, forexPairName?: string) => void;
+}) {
+  const [enableInversion, setEnableInversion] = useState<boolean>(false);
+  const [selectedColumn, setSelectedColumn] = useState<string>('');
+  const [forexPairName, setForexPairName] = useState<string>('');
+
+  const handleInversion = () => {
+    if (!selectedColumn || !forexPairName || !enableInversion) return;
+    onForexInversion(dataset.id, selectedColumn, forexPairName);
+    setSelectedColumn('');
+    setForexPairName('');
+    setEnableInversion(false);
+  };
+
+  return (
+    <div className="border rounded-lg p-3 bg-white dark:bg-gray-800">
+      <div className="font-medium text-sm mb-3 text-yellow-800 dark:text-yellow-200">
+        {dataset.name}
+      </div>
+      
+      {/* Enable Inversion Checkbox */}
+      <div className="mb-3">
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id={`enable-inversion-${dataset.id}`}
+            checked={enableInversion}
+            onCheckedChange={setEnableInversion}
+          />
+          <Label 
+            htmlFor={`enable-inversion-${dataset.id}`}
+            className="text-sm text-yellow-800 dark:text-yellow-200 cursor-pointer"
+          >
+            Activer l'inversion de paire forex
+          </Label>
+        </div>
+      </div>
+
+      {/* Inversion Controls - Only visible when enabled */}
+      {enableInversion && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          {/* Column Selection */}
+          <div>
+            <Label className="text-xs text-yellow-700 dark:text-yellow-300">
+              Colonne à inverser
+            </Label>
+            <Select value={selectedColumn} onValueChange={setSelectedColumn}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Choisir..." />
+              </SelectTrigger>
+              <SelectContent>
+                {dataset.numericColumns.map(col => (
+                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Forex Pair Name */}
+          <div>
+            <Label className="text-xs text-yellow-700 dark:text-yellow-300">
+              Paire de devises
+            </Label>
+            <Input
+              placeholder="USD/MAD"
+              value={forexPairName}
+              onChange={(e) => setForexPairName(e.target.value.toUpperCase())}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          {/* Invert Button */}
+          <div>
+            <Button
+              size="sm"
+              onClick={handleInversion}
+              disabled={!selectedColumn || !forexPairName}
+              className="h-8 w-full"
+            >
+              <RefreshCcw className="h-3 w-3 mr-1" />
+              → {forexPairName ? invertForexPair(forexPairName) : '?'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-detected forex pairs */}
+      {dataset.numericColumns.some(col => detectForexPair(col).isForexPair) && (
+        <div className="mt-3 pt-3 border-t">
+          <div className="text-xs text-yellow-700 dark:text-yellow-300 mb-2">
+            Paires détectées automatiquement :
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {dataset.numericColumns
+              .filter(col => detectForexPair(col).isForexPair)
+              .map(col => (
+                <div key={col} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border">
+                  <span className="text-sm font-medium">{col}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onForexInversion(dataset.id, col)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <RefreshCcw className="h-3 w-3 mr-1" />
+                    → {invertForexPair(col)}
+                  </Button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function MultiDatasetManager({ 
@@ -120,13 +319,54 @@ export function MultiDatasetManager({
     }
   }, [datasets, onDatasetsChange, selectedVariables, onVariableSelect, activeTab]);
 
+  // Handle forex pair inversion
+  const handleForexInversion = useCallback((datasetId: string, columnName: string, forexPairName?: string) => {
+    const dataset = datasets.find(d => d.id === datasetId);
+    if (!dataset) return;
+    
+    const newDataset = invertForexDataInDataset(dataset, columnName, forexPairName);
+    const updatedDatasets = datasets.map(d => d.id === datasetId ? newDataset : d);
+    
+    onDatasetsChange(updatedDatasets);
+    
+    // Update selected variables if they reference the modified column
+    const newColumnName = forexPairName ? invertForexPair(forexPairName) : invertForexPair(columnName);
+    if (selectedVariables.x?.datasetId === datasetId && selectedVariables.x?.column === columnName) {
+      onVariableSelect({
+        datasetId,
+        column: newColumnName,
+        label: newColumnName, // Use only the forex pair name, not dataset.column
+        customName: selectedVariables.x.customName
+      }, 'x');
+    }
+    if (selectedVariables.y?.datasetId === datasetId && selectedVariables.y?.column === columnName) {
+      onVariableSelect({
+        datasetId,
+        column: newColumnName,
+        label: newColumnName, // Use only the forex pair name, not dataset.column
+        customName: selectedVariables.y.customName
+      }, 'y');
+    }
+
+    const originalName = forexPairName || columnName;
+    toast({
+      title: "Paire inversée",
+      description: `${originalName} → ${newColumnName}`,
+      variant: "default"
+    });
+  }, [datasets, onDatasetsChange, selectedVariables, onVariableSelect]);
+
   const handleVariableSelect = useCallback((datasetId: string, column: string, axis: 'x' | 'y') => {
     const dataset = datasets.find(d => d.id === datasetId);
     if (dataset) {
+      // Check if it's a forex pair, if so use only the pair name as label
+      const pairInfo = detectForexPair(column);
+      const label = pairInfo.isForexPair ? column : `${dataset.name}.${column}`;
+      
       onVariableSelect({
         datasetId,
         column,
-        label: `${dataset.name}.${column}`
+        label
       }, axis);
     }
   }, [datasets, onVariableSelect]);
@@ -294,6 +534,69 @@ export function MultiDatasetManager({
                 </div>
               </div>
             )}
+
+            {/* Custom Variable Names */}
+            <div className="mb-4 p-3 bg-muted/50 rounded-lg border">
+              <div className="text-sm font-medium mb-3">Noms personnalisés des variables :</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="x-custom-name" className="text-xs">
+                    Nom pour {selectedVariables.x!.column}
+                  </Label>
+                  <Input
+                    id="x-custom-name"
+                    placeholder={selectedVariables.x!.column}
+                    value={selectedVariables.x!.customName || ''}
+                    onChange={(e) => {
+                      const updatedSelection = { ...selectedVariables.x!, customName: e.target.value };
+                      onVariableSelect(updatedSelection, 'x');
+                    }}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="y-custom-name" className="text-xs">
+                    Nom pour {selectedVariables.y!.column}
+                  </Label>
+                  <Input
+                    id="y-custom-name"
+                    placeholder={selectedVariables.y!.column}
+                    value={selectedVariables.y!.customName || ''}
+                    onChange={(e) => {
+                      const updatedSelection = { ...selectedVariables.y!, customName: e.target.value };
+                      onVariableSelect(updatedSelection, 'y');
+                    }}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground mt-2">
+                Ces noms apparaîtront dans les équations de régression
+              </div>
+            </div>
+
+            {/* Forex Pair Inversion Section - Before Validation */}
+            <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign className="h-5 w-5 text-yellow-600" />
+                <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+                  Inversion de Paire Forex (Optionnel)
+                </h3>
+              </div>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-3">
+                Inversez une paire de devises avant l'analyse (ex: USD/MAD → MAD/USD)
+              </p>
+              
+              <div className="space-y-3">
+                {datasets.map(dataset => (
+                  <ForexColumnManager
+                    key={dataset.id}
+                    dataset={dataset}
+                    onForexInversion={handleForexInversion}
+                  />
+                ))}
+              </div>
+            </div>
 
             {/* Validation Button */}
             {onValidateAndProceed && (

@@ -7,8 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   AreaChart,
   Area
 } from "recharts";
@@ -24,10 +22,19 @@ interface VariableChartsProps {
 }
 
 export function VariableCharts({ data, xLabel, yLabel }: VariableChartsProps) {
+  const combinedData = useMemo(() => {
+    if (!data.length) return [];
+    return data.map((point, index) => ({
+      index: index + 1,
+      [xLabel]: point.x,
+      [yLabel]: point.y
+    }));
+  }, [data, xLabel, yLabel]);
+
   const xData = useMemo(() => {
     if (!data.length) return [];
     return data.map((point, index) => ({
-      index,
+      index: index + 1,
       value: point.x,
       label: `${xLabel} ${index + 1}`
     }));
@@ -36,7 +43,7 @@ export function VariableCharts({ data, xLabel, yLabel }: VariableChartsProps) {
   const yData = useMemo(() => {
     if (!data.length) return [];
     return data.map((point, index) => ({
-      index,
+      index: index + 1,
       value: point.y,
       label: `${yLabel} ${index + 1}`
     }));
@@ -81,17 +88,102 @@ export function VariableCharts({ data, xLabel, yLabel }: VariableChartsProps) {
   return (
     <Card className="glass-card">
       <CardHeader>
-        <CardTitle>Analyse des Variables Individuelles</CardTitle>
+        <CardTitle>Analyse des Variables</CardTitle>
         <div className="text-sm text-muted-foreground">
           Visualisation et statistiques détaillées pour chaque variable
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="x-variable" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="x-variable">{xLabel} (Variable X)</TabsTrigger>
-            <TabsTrigger value="y-variable">{yLabel} (Variable Y)</TabsTrigger>
+        <Tabs defaultValue="comparison" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="comparison">Comparaison</TabsTrigger>
+            <TabsTrigger value="x-variable">{xLabel}</TabsTrigger>
+            <TabsTrigger value="y-variable">{yLabel}</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="comparison" className="space-y-4">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-medium">Évolution des Variables dans le Temps</h3>
+              <p className="text-sm text-muted-foreground">
+                Visualisation comparative de {xLabel} et {yLabel}
+              </p>
+            </div>
+            
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={combinedData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="index" 
+                    stroke="hsl(var(--muted-foreground))"
+                    label={{ value: 'Point dans le temps', position: 'insideBottom', offset: -5 }}
+                  />
+                  
+                  {/* Axe Y gauche pour la première variable */}
+                  <YAxis 
+                    yAxisId="left"
+                    stroke="hsl(var(--primary))" 
+                    label={{ 
+                      value: xLabel, 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle' }
+                    }}
+                  />
+                  
+                  {/* Axe Y droite pour la deuxième variable */}
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="hsl(var(--destructive))" 
+                    label={{ 
+                      value: yLabel, 
+                      angle: 90, 
+                      position: 'insideRight',
+                      style: { textAnchor: 'middle' }
+                    }}
+                  />
+                  
+                  <Tooltip 
+                    formatter={(value: any, name: string) => [Number(value).toFixed(4), name]}
+                    labelFormatter={(label) => `Point: ${label}`}
+                  />
+                  
+                  <Line 
+                    type="monotone" 
+                    dataKey={xLabel} 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={3} 
+                    dot={false}
+                    name={xLabel}
+                    yAxisId="left"
+                  />
+                  
+                  <Line 
+                    type="monotone" 
+                    dataKey={yLabel} 
+                    stroke="hsl(var(--destructive))" 
+                    strokeWidth={3} 
+                    dot={false}
+                    name={yLabel}
+                    yAxisId="right"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Légende pour les axes */}
+            <div className="flex justify-center gap-6 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-0.5 bg-primary"></div>
+                <span className="text-sm font-medium text-primary">{xLabel} (Axe gauche)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-0.5 bg-destructive"></div>
+                <span className="text-sm font-medium text-destructive">{yLabel} (Axe droit)</span>
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent value="x-variable" className="space-y-4">
             {xStats && (
@@ -105,30 +197,29 @@ export function VariableCharts({ data, xLabel, yLabel }: VariableChartsProps) {
               </div>
             )}
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={xData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="index" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip formatter={formatTooltip} />
-                    <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={xData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="index" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip formatter={formatTooltip} />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={xData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="index" 
+                    stroke="hsl(var(--muted-foreground))"
+                    label={{ value: 'Point dans le temps', position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    formatter={formatTooltip}
+                    labelFormatter={(label) => `Point: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2} 
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </TabsContent>
 
@@ -144,30 +235,29 @@ export function VariableCharts({ data, xLabel, yLabel }: VariableChartsProps) {
               </div>
             )}
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={yData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="index" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip formatter={formatTooltip} />
-                    <Line type="monotone" dataKey="value" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={yData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="index" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip formatter={formatTooltip} />
-                    <Area type="monotone" dataKey="value" stroke="hsl(var(--accent))" fill="hsl(var(--accent))" fillOpacity={0.3} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={yData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="index" 
+                    stroke="hsl(var(--muted-foreground))"
+                    label={{ value: 'Point dans le temps', position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    formatter={formatTooltip}
+                    labelFormatter={(label) => `Point: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="hsl(var(--accent))" 
+                    strokeWidth={2} 
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </TabsContent>
         </Tabs>

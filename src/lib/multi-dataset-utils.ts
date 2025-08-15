@@ -53,8 +53,8 @@ export function combineDatasets(
 
     return {
       dataPoints,
-      xLabel: xVariable.label,
-      yLabel: yVariable.label,
+      xLabel: xVariable.customName || xVariable.label,
+      yLabel: yVariable.customName || yVariable.label,
       sourceInfo: {
         x: { dataset: xDataset.name, column: xVariable.column },
         y: { dataset: yDataset.name, column: yVariable.column }
@@ -79,8 +79,8 @@ export function combineDatasets(
 
   return {
     dataPoints,
-    xLabel: xVariable.label,
-    yLabel: yVariable.label,
+          xLabel: xVariable.customName || xVariable.label,
+      yLabel: yVariable.customName || yVariable.label,
     sourceInfo: {
       x: { dataset: xDataset.name, column: xVariable.column },
       y: { dataset: yDataset.name, column: yVariable.column }
@@ -154,8 +154,8 @@ export function combineDatasetsByKey(
 
   return {
     dataPoints,
-    xLabel: xVariable.label,
-    yLabel: yVariable.label,
+          xLabel: xVariable.customName || xVariable.label,
+      yLabel: yVariable.customName || yVariable.label,
     sourceInfo: {
       x: { dataset: xDataset.name, column: xVariable.column },
       y: { dataset: yDataset.name, column: yVariable.column }

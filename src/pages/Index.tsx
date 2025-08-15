@@ -30,6 +30,7 @@ const Index = () => {
   // Legacy state (for backward compatibility)
   const [rawData, setRawData] = useState<Record<string, any>[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<{ x: string; y: string }>({ x: "", y: "" });
+  const [customLabels, setCustomLabels] = useState<{ x: string; y: string }>({ x: "", y: "" });
   const [selectedModel, setSelectedModel] = useState<RegressionType>('linear');
   const [regressionResults, setRegressionResults] = useState<Record<RegressionType, any>>({
     linear: null,
@@ -117,6 +118,10 @@ const Index = () => {
     setSelectedColumns(prev => ({ ...prev, [axis]: column }));
   }, []);
 
+  const handleCustomLabelChange = useCallback((label: string, axis: 'x' | 'y') => {
+    setCustomLabels(prev => ({ ...prev, [axis]: label }));
+  }, []);
+
   const handleModelSelect = useCallback((model: RegressionType) => {
     setSelectedModel(model);
   }, []);
@@ -133,7 +138,15 @@ const Index = () => {
     }
 
     console.log(`Calculating ${modelType} regression...`);
-    const result = performRegression(processedData, modelType, modelType === 'polynomial' ? 2 : undefined);
+    const xLabel = customLabels.x || combinedData?.xLabel || selectedColumns.x;
+    const yLabel = customLabels.y || combinedData?.yLabel || selectedColumns.y;
+    const result = performRegression(
+      processedData, 
+      modelType, 
+      modelType === 'polynomial' ? 2 : undefined,
+      xLabel,
+      yLabel
+    );
     
     setRegressionResults(prev => ({
       ...prev,
@@ -183,9 +196,18 @@ const Index = () => {
     };
 
     // Calculate each available model
+    const xLabel = customLabels.x || combinedData?.xLabel || selectedColumns.x;
+    const yLabel = customLabels.y || combinedData?.yLabel || selectedColumns.y;
+    
     for (const modelType of availableTypes) {
       console.log(`Calculating ${modelType}...`);
-      const result = performRegression(processedData, modelType, modelType === 'polynomial' ? 2 : undefined);
+      const result = performRegression(
+        processedData, 
+        modelType, 
+        modelType === 'polynomial' ? 2 : undefined,
+        xLabel,
+        yLabel
+      );
       results[modelType] = result;
     }
 
