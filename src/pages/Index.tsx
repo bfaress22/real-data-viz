@@ -17,6 +17,7 @@ import { combineDatasets, validateVariableSelection, getDataAlignmentInfo } from
 import { validateNumericData } from "@/lib/data-parser";
 import { BarChart3, TrendingUp, Database, AlertTriangle, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useDatasets } from "@/hooks/use-datasets";
 
 const Index = () => {
   // Multi-dataset state
@@ -26,6 +27,7 @@ const Index = () => {
     y: VariableSelection | null;
   }>({ x: null, y: null });
   const [isDataValidated, setIsDataValidated] = useState(false);
+  const { saveDataset } = useDatasets();
 
   // Legacy state (for backward compatibility)
   const [rawData, setRawData] = useState<Record<string, any>[]>([]);
@@ -101,6 +103,19 @@ const Index = () => {
         setSelectedColumns({ x: numericColumns[0], y: "" });
       }
 
+      // Save to Supabase database
+      try {
+        await saveDataset({
+          name: file.name,
+          data: result.data,
+          columns: result.headers,
+          numericColumns: numericColumns,
+          fileSize: file.size
+        });
+      } catch (error) {
+        console.error('Error saving dataset to Supabase:', error);
+      }
+
       toast({
         title: "Dataset loaded successfully",
         description: `${result.data.length} rows, ${result.headers.length} columns`
@@ -112,7 +127,7 @@ const Index = () => {
         variant: "destructive"
       });
     }
-  }, []);
+  }, [saveDataset]);
 
   const handleColumnSelect = useCallback((column: string, axis: 'x' | 'y') => {
     setSelectedColumns(prev => ({ ...prev, [axis]: column }));

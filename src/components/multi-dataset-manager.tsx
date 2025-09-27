@@ -143,7 +143,7 @@ function ForexColumnManager({
           <Checkbox 
             id={`enable-inversion-${dataset.id}`}
             checked={enableInversion}
-            onCheckedChange={setEnableInversion}
+            onCheckedChange={(checked) => setEnableInversion(checked === true)}
           />
           <Label 
             htmlFor={`enable-inversion-${dataset.id}`}

@@ -141,7 +141,7 @@ export function RegressionChart({ data, regression, title, xLabel, yLabel }: Reg
               Équation de régression :
             </div>
             <p className="text-lg font-mono text-blue-800 dark:text-blue-200 font-semibold">
-              {regression.customString || regression.string}
+              {regression.string}
             </p>
           </div>
         )}
